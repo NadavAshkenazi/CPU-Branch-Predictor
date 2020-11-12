@@ -1,0 +1,3 @@
+C:/Users/nadav ashkenazi/OneDrive - Technion/Technion/semester_6/Computer Architecture/hw/hw1/ca_hw1/cmake-build-debug/CMakeFiles/ca_hw1.dir
+C:/Users/nadav ashkenazi/OneDrive - Technion/Technion/semester_6/Computer Architecture/hw/hw1/ca_hw1/cmake-build-debug/CMakeFiles/edit_cache.dir
+C:/Users/nadav ashkenazi/OneDrive - Technion/Technion/semester_6/Computer Architecture/hw/hw1/ca_hw1/cmake-build-debug/CMakeFiles/rebuild_cache.dir
