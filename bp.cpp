@@ -11,13 +11,19 @@ using namespace std;
 
 enum STATE {SNT, WNT, WT, ST};
 
+#define ADDRESS_SIZE 30
+#define NOT_USING_SHARE 0
+#define USING_SHARE_LSB 1
+#define USING_SHARE_MID 2
+#define VALID_BIT_SIZE 1
+
 //**************************************
 // Global variables
 //**************************************
 class Btb;
 class entry;
 static Btb* btb = NULL;
-
+SIM_stats simStats = SIM_stats();
 
 int getBit(uint32_t n, int bitnr) {
     int mask = 1 << bitnr;
@@ -26,32 +32,9 @@ int getBit(uint32_t n, int bitnr) {
     return thebit;
 }
 
-class Tag{
-    private:
-        vector<bool> tag;
-    public:
-        Tag(uint32_t pc,int tagSize){
-            this->tag = vector<bool>(tagSize);
-            for (int i = 0; i < tagSize; i++){
-                tag[i] = getBit(pc, i);
-            }
-        }
-        string getTag(){
-            string res ="";
-            for (vector<bool>::iterator it = tag.begin(); it != tag.end(); it++){
-                char bit = *it?'1':'0';
-                res = bit + res;
-            }
-            return res;
-        }
-};
-
-
-
 class historyRegister{
-    private:
-        vector<bool> history;
     public:
+        vector<bool> history;
         historyRegister(int historySize){
             this->history = vector<bool>(historySize,0);
         }
@@ -125,14 +108,44 @@ class Btb{
         }
         void addNewBranch(uint32_t pc);
         bool predict(uint32_t pc, uint32_t* dst);
-//        void update(uint32_t pc, uint32_t target_pc, bool taken, uint32_t pred_dst);
-
+        void update(uint32_t pc, uint32_t target_pc, bool taken, uint32_t pred_dst);
 };
+
+string getCurrentFsmEntry(historyRegister* history, uint32_t pc){
+    if (!btb->isGlobalTable || btb->Shared == NOT_USING_SHARE){
+        return history->getHistory();
+    }
+    uint32_t mask = 0;
+    int startBit = 0;
+    if (btb->Shared= USING_SHARE_LSB){
+        startBit = 2;
+    }
+    else if (btb->Shared= USING_SHARE_MID){
+        startBit = 16;
+    }
+
+    for (int i = 0; i < btb->historySize; i++){
+        mask = mask << 1;
+        mask++;
+    }
+    mask = mask << startBit;
+    uint32_t pcWantedBits = mask & pc;
+    string res = "";
+    for (int i = 0; i< btb->historySize; i++){
+        if (history->history[i] xor getBit(pcWantedBits,startBit+i)){
+            res = "1"+res;
+        }
+        else {
+            res = "0" + res;
+        }
+    }
+    return res;
+}
 
 int pc2key(uint32_t pc){
     int keySize = log2(btb->btbSize);
     uint32_t key = 0;
-    for (int i = 0; i < keySize; i++){
+    for (int i = 2; i < keySize; i++){
         uint32_t mask = 1 << i;
         key = key | mask;
     }
@@ -142,12 +155,32 @@ int pc2key(uint32_t pc){
 string calculateTag(uint32_t pc){
     string res = "";
     for (int i = 0; i < btb->tagSize; i++){
-        int b = getBit(pc, i);
+        int b = getBit(pc, i + btb->btbSize+2);
         char bit = b==1?'1':'0';
         res = bit + res;
     }
     return res;
 }
+
+class Tag{
+private:
+    vector<bool> tag;
+public:
+    Tag(uint32_t pc,int tagSize){
+        this->tag = vector<bool>(tagSize);
+        for (int i = 0; i < tagSize; i++){
+            tag[i] = getBit(pc, i+btb->btbSize+2);
+        }
+    }
+    string getTag(){
+        string res ="";
+        for (vector<bool>::iterator it = tag.begin(); it != tag.end(); it++){
+            char bit = *it?'1':'0';
+            res = bit + res;
+        }
+        return res;
+    }
+};
 
 class entry{
 public :
@@ -155,8 +188,7 @@ public :
     historyRegister* history;
     map<string, STATE>* fsmTable;
     uint32_t predicted_pc;
-    bool valid;
-    entry(uint32_t pc, int tagSize, int historySize): history(NULL), fsmTable(NULL), predicted_pc(pc+4), valid(false) {
+    entry(uint32_t pc, int tagSize, int historySize): history(NULL), fsmTable(NULL), predicted_pc(pc+4) {
 
         this->tag = new Tag(pc, tagSize);
         if (!btb->isGlobalHist)
@@ -192,8 +224,9 @@ bool Btb::predict(uint32_t pc, uint32_t* dst) {
     historyRegister* currentHistory;
     entry* currentEntry = (*(this->branchTable))[key];
 
-    if (currentEntry == NULL){
+    if (currentEntry == NULL){ //todo: check if can be moved to update
         btb->addNewBranch(pc);
+        currentEntry = (*(this->branchTable))[key];
     }
 
     if (isGlobalTable){
@@ -215,12 +248,14 @@ bool Btb::predict(uint32_t pc, uint32_t* dst) {
          *dst = pc+4;
     }
     else {
-        if ((*currentFsm).find(currentHistory->getHistory()) == (*currentFsm).end()) {
+        if ((*currentFsm).find(getCurrentFsmEntry(currentHistory, pc)) == (*currentFsm).end()) {
             isTaken = state2Bool(initialFsmState);
         }
         else {
+//            isTaken = state2Bool(
+//                    (*currentFsm)[currentEntry->history->getHistory()]); // todo: change to func for lshare/gshare
             isTaken = state2Bool(
-                    (*currentFsm)[currentEntry->history->getHistory()]); // todo: change to func for lshare/gshare
+                    (*currentFsm)[getCurrentFsmEntry(currentHistory, pc)]); // todo: done
         }
         if (!isTaken)
             *dst = pc + 4;
@@ -231,8 +266,92 @@ bool Btb::predict(uint32_t pc, uint32_t* dst) {
     return isTaken;
 }
 
+STATE updateState(STATE currentState, bool isTaken) {
+    switch(currentState){
+        case SNT:{
+            if (isTaken) return WNT;
+            return SNT;
+        }
+        case WNT:{
+            if (isTaken) return WT;
+            return SNT;
+        }
+        case WT:{
+            if (isTaken) return ST;
+            return WNT;
+        }
+        case ST:{
+            if (isTaken) return ST;
+            return WT;
+        }
+        default: return WNT;
+    }
+}
 
 
+void Btb::update(uint32_t pc, uint32_t target_pc, bool taken, uint32_t pred_dst){
+    simStats.br_num++;
+    int key = pc2key(pc);
+    map<string, STATE>* currentFsm;
+    historyRegister* currentHistory;
+    entry* currentEntry = (*(this->branchTable))[key];
+    uint32_t tempdst = 0;
+    bool prediction =btb->predict(pc, &tempdst);
+    if (currentEntry->tag->getTag() != calculateTag(pc)){
+        string s1 = currentEntry->tag->getTag();
+        string s2 = calculateTag(pc);
+        delete currentEntry;
+        currentEntry = new entry(pc, btb->tagSize, btb->historySize);
+    }
+
+    if (isGlobalTable){
+        currentFsm = btb ->globalFsmTable;
+    }
+    else {
+        currentFsm = (*(this->branchTable))[key]->fsmTable;
+    }
+    if (isGlobalHist){
+        currentHistory = btb ->globalHistory;
+    }
+    else {
+        currentHistory = (*(this->branchTable))[key]->history;
+    }
+    if ((*currentFsm).find(getCurrentFsmEntry(currentHistory, pc)) == (*currentFsm).end()) {
+        string newHistory = getCurrentFsmEntry(currentHistory, pc);
+        (*currentFsm)[newHistory] = updateState(initialFsmState, taken);
+    }
+    else {
+//        (*currentFsm)[currentHistory->getHistory()] = updateState((*currentFsm)[currentHistory->getHistory()], taken); //todo: gshare
+        (*currentFsm)[getCurrentFsmEntry(currentHistory, pc)] =
+                updateState((*currentFsm)[getCurrentFsmEntry(currentHistory, pc)], taken); //todo: done
+    }
+    if (taken == prediction){
+        if (target_pc != pred_dst){
+//            simStats .flush_num++;
+            currentEntry->predicted_pc = target_pc;
+        }
+    }
+    else {
+        simStats .flush_num++;
+        currentEntry->predicted_pc = target_pc;
+    }
+    currentHistory->pushRight(taken);
+    }
+
+int calculateSize(){
+    if (btb->isGlobalHist && btb->isGlobalTable){
+        return btb->btbSize*(btb->tagSize + ADDRESS_SIZE + VALID_BIT_SIZE) + (btb->historySize + 2*pow(2,btb->historySize));
+    }
+    else if (btb->isGlobalHist){
+        return btb->btbSize*(btb->tagSize + ADDRESS_SIZE + VALID_BIT_SIZE + 2*pow(2,btb->historySize)) + (btb->historySize);
+    }
+    else if (btb->isGlobalTable){
+        return btb->btbSize*(btb->tagSize + ADDRESS_SIZE + VALID_BIT_SIZE + btb->historySize) + 2*(pow(2,btb->historySize));
+    }
+    else{
+        return btb->btbSize*(btb->tagSize + ADDRESS_SIZE + VALID_BIT_SIZE + btb->historySize + 2*pow(2,btb->historySize));
+    }
+}
 int BP_init(unsigned btbSize, unsigned historySize, unsigned tagSize, unsigned fsmState,
 			bool isGlobalHist, bool isGlobalTable, int Shared){
     if (btbSize % 2 != 0 || btbSize < 1 || btbSize > 32)
@@ -244,6 +363,9 @@ int BP_init(unsigned btbSize, unsigned historySize, unsigned tagSize, unsigned f
     else if (fsmState < 0 || fsmState > 3)
         return -1;
 	btb = new Btb(btbSize, historySize, tagSize, fsmState, isGlobalHist, isGlobalTable, Shared);
+	simStats.br_num =0;
+	simStats.flush_num=0;
+	simStats.size = calculateSize();
     return 0;
 
 }
@@ -253,10 +375,14 @@ bool BP_predict(uint32_t pc, uint32_t *dst){
 }
 
 void BP_update(uint32_t pc, uint32_t targetPc, bool taken, uint32_t pred_dst){
-	return;
+    btb->update(pc, targetPc, taken, pred_dst);
 }
 
 void BP_GetStats(SIM_stats *curStats){
-	return;
+    curStats->br_num = simStats.br_num;
+    curStats->flush_num = simStats.flush_num;
+    curStats->size = simStats.size;
+    delete btb;
+    return;
 }
 
