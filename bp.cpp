@@ -256,10 +256,8 @@ bool Btb::predict(uint32_t pc, uint32_t* dst) {
             isTaken = state2Bool(initialFsmState);
         }
         else {
-//            isTaken = state2Bool(
-//                    (*currentFsm)[currentEntry->history->getHistory()]); // todo: change to func for lshare/gshare
             isTaken = state2Bool(
-                    (*currentFsm)[getCurrentFsmEntry(currentHistory, pc)]); // todo: done
+                    (*currentFsm)[getCurrentFsmEntry(currentHistory, pc)]);
         }
         if (!isTaken)
             *dst = pc + 4;
@@ -302,8 +300,6 @@ void Btb::update(uint32_t pc, uint32_t target_pc, bool taken, uint32_t pred_dst)
     entry* currentEntry = (*(this->branchTable))[key];
     uint32_t tempdst = 0;
     bool prediction =btb->predict(pc, &tempdst);
-    string s1 = currentEntry->tag->getTag(); // todo: debug
-    string s2 = calculateTag(pc); // todo: debug
     if (currentEntry->tag->getTag() != calculateTag(pc)){
 
         delete currentEntry;
@@ -327,16 +323,14 @@ void Btb::update(uint32_t pc, uint32_t target_pc, bool taken, uint32_t pred_dst)
         (*currentFsm)[newHistory] = updateState(initialFsmState, taken);
     }
     else {
-//        (*currentFsm)[currentHistory->getHistory()] = updateState((*currentFsm)[currentHistory->getHistory()], taken); //todo: gshare
         (*currentFsm)[getCurrentFsmEntry(currentHistory, pc)] =
-                updateState((*currentFsm)[getCurrentFsmEntry(currentHistory, pc)], taken); //todo: done
+                updateState((*currentFsm)[getCurrentFsmEntry(currentHistory, pc)], taken); 
     }
     if (taken == prediction){
         if (target_pc != pred_dst){
 //            simStats .flush_num++;
             currentEntry->predicted_pc = target_pc;
         }
-        int debug = 0; //todo:debug
     }
     else {
         simStats .flush_num++;
