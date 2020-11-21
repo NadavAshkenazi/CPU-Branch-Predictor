@@ -15,7 +15,7 @@ enum STATE {SNT, WNT, WT, ST};
 #define NOT_USING_SHARE 0
 #define USING_SHARE_LSB 1
 #define USING_SHARE_MID 2
-#define VALID_BIT_SIZE 1
+#define VALID_BIT_SIZE 0 //debug
 #define pass (void)0
 
 //**************************************
