@@ -143,12 +143,13 @@ string getCurrentFsmEntry(historyRegister* history, uint32_t pc){
 }
 
 int pc2key(uint32_t pc){
-    int keySize = log2(btb->btbSize);
+    int keySize = btb->btbSize;
     uint32_t key = 0;
-    for (int i = 2; i < keySize; i++){
+    for (int i = 0; i < keySize; i++){
         uint32_t mask = 1 << i;
         key = key | mask;
     }
+    key = key << 2;
     return (key & pc);
 }
 
@@ -291,15 +292,17 @@ STATE updateState(STATE currentState, bool isTaken) {
 
 void Btb::update(uint32_t pc, uint32_t target_pc, bool taken, uint32_t pred_dst){
     simStats.br_num++;
+
     int key = pc2key(pc);
     map<string, STATE>* currentFsm;
     historyRegister* currentHistory;
     entry* currentEntry = (*(this->branchTable))[key];
     uint32_t tempdst = 0;
     bool prediction =btb->predict(pc, &tempdst);
+    string s1 = currentEntry->tag->getTag(); // todo: debug
+    string s2 = calculateTag(pc); // todo: debug
     if (currentEntry->tag->getTag() != calculateTag(pc)){
-        string s1 = currentEntry->tag->getTag();
-        string s2 = calculateTag(pc);
+
         delete currentEntry;
         currentEntry = new entry(pc, btb->tagSize, btb->historySize);
     }
@@ -327,7 +330,7 @@ void Btb::update(uint32_t pc, uint32_t target_pc, bool taken, uint32_t pred_dst)
     }
     if (taken == prediction){
         if (target_pc != pred_dst){
-//            simStats .flush_num++;
+            simStats .flush_num++;
             currentEntry->predicted_pc = target_pc;
         }
     }
