@@ -15,7 +15,7 @@ enum STATE {SNT, WNT, WT, ST};
 #define NOT_USING_SHARE 0
 #define USING_SHARE_LSB 1
 #define USING_SHARE_MID 2
-#define VALID_BIT_SIZE 1 //debug
+#define VALID_BIT_SIZE 1
 #define pass (void)0
 
 //**************************************
@@ -26,6 +26,7 @@ class entry;
 static Btb* btb = NULL;
 SIM_stats simStats = SIM_stats();
 
+// get the bitnr bit from n address
 int getBit(uint32_t n, int bitnr) {
     int mask = 1 << bitnr;
     int masked_n = n & mask;
@@ -33,6 +34,7 @@ int getBit(uint32_t n, int bitnr) {
     return thebit;
 }
 
+// a class that allows control and insertion to an history register
 class historyRegister{
     public:
         vector<bool> history;
@@ -64,6 +66,8 @@ class historyRegister{
         }
 
 };
+
+// conversion from int to state enum
 STATE int2State(int state){
     switch(state){
         case 0: return SNT;
@@ -74,6 +78,8 @@ STATE int2State(int state){
     }
 }
 
+// branch target buffer class
+// has all permutation for local/global history/table options
 class Btb{
     public:
         unsigned btbSize;
@@ -111,7 +117,7 @@ class Btb{
         bool predict(uint32_t pc, uint32_t* dst);
         void update(uint32_t pc, uint32_t target_pc, bool taken, uint32_t pred_dst);
 };
-
+// provides the the key to the fsm entry, allows lsb/mid share
 string getCurrentFsmEntry(historyRegister* history, uint32_t pc){
     if (!btb->isGlobalTable || btb->Shared == NOT_USING_SHARE){
         return history->getHistory();
@@ -143,6 +149,7 @@ string getCurrentFsmEntry(historyRegister* history, uint32_t pc){
     return res;
 }
 
+//takes the relevant bits from the address to the key in light of the btb size
 int pc2key(uint32_t pc){
     int keySize = log2(btb->btbSize);
     uint32_t key_mask = 0;
@@ -156,6 +163,7 @@ int pc2key(uint32_t pc){
     return key;
 }
 
+// takes the relevant bit for tag in light of the tag size
 string calculateTag(uint32_t pc){
     string res = "";
     for (int i = 0; i < btb->tagSize; i++){
@@ -166,6 +174,7 @@ string calculateTag(uint32_t pc){
     return res;
 }
 
+//tag class, allows creating and retrieving a string representation
 class Tag{
 private:
     vector<bool> tag;
@@ -186,6 +195,7 @@ public:
     }
 };
 
+// branch entry class, hold tag, local fms and local history when needed
 class entry{
 public :
     Tag* tag;
@@ -206,12 +216,15 @@ public :
         delete fsmTable;
     }
 };
+
+//add new branch to the btb
 void Btb::addNewBranch(uint32_t pc){
     int key = pc2key(pc);
     delete (*branchTable)[key];
     (*branchTable)[key] = new entry(pc, btb->tagSize, btb->historySize);
 }
 
+//converts enum state to a true/false representation
 bool state2Bool(STATE state){
     switch(state){
         case SNT: return false;
@@ -222,17 +235,13 @@ bool state2Bool(STATE state){
     }
 }
 
+// predict taking/not taking the branch
 bool Btb::predict(uint32_t pc, uint32_t* dst) {
     int key = pc2key(pc);
     map<string, STATE>* currentFsm;
     historyRegister* currentHistory;
     entry* currentEntry = (*(this->branchTable))[key];
-
-//    if (currentEntry == NULL){ //todo: check if can be moved to update
-//        btb->addNewBranch(pc);
-//        currentEntry = (*(this->branchTable))[key];
-//    }
-
+    /*decide which table and history to use*/
     if (isGlobalTable){
         currentFsm = btb ->globalFsmTable;
     }
@@ -247,31 +256,31 @@ bool Btb::predict(uint32_t pc, uint32_t* dst) {
     }
 
     bool isTaken = false;
-    if(currentEntry == NULL){
+    if(currentEntry == NULL){ // no entry found
         isTaken = state2Bool(initialFsmState);
         *dst = pc+4;
     }
-    else if (currentEntry->tag->getTag() != calculateTag(pc)) {
+    else if (currentEntry->tag->getTag() != calculateTag(pc)) { // right entry wrong tag
          isTaken = state2Bool(initialFsmState);
          *dst = pc+4;
     }
-    else {
-        if ((*currentFsm).find(getCurrentFsmEntry(currentHistory, pc)) == (*currentFsm).end()) {
+    else { //right entry right tag
+        if ((*currentFsm).find(getCurrentFsmEntry(currentHistory, pc)) == (*currentFsm).end()) { //no history entry in fsm
             isTaken = state2Bool(initialFsmState);
         }
-        else {
+        else { // found history entry in fsm
             isTaken = state2Bool(
                     (*currentFsm)[getCurrentFsmEntry(currentHistory, pc)]);
         }
-        if (!isTaken)
+        if (!isTaken) // return default target (pc+4)
             *dst = pc + 4;
-        else {
+        else { // return predicted target
             *dst = currentEntry->predicted_pc;
         }
     }
     return isTaken;
 }
-
+// taken given state and outcome returns next state
 STATE updateState(STATE currentState, bool isTaken) {
     switch(currentState){
         case SNT:{
@@ -294,7 +303,7 @@ STATE updateState(STATE currentState, bool isTaken) {
     }
 }
 
-
+// update btb data
 void Btb::update(uint32_t pc, uint32_t target_pc, bool taken, uint32_t pred_dst){
     simStats.br_num++;
 
@@ -302,18 +311,18 @@ void Btb::update(uint32_t pc, uint32_t target_pc, bool taken, uint32_t pred_dst)
     map<string, STATE>* currentFsm;
     historyRegister* currentHistory;
     entry* currentEntry = (*(this->branchTable))[key];
-    if (currentEntry == NULL){ //todo: check if works
+    if (currentEntry == NULL){ // no entry found, insert new entry
         btb->addNewBranch(pc);
         currentEntry = (*(this->branchTable))[key];
     }
     uint32_t tempdst = 0;
     bool prediction =btb->predict(pc, &tempdst);
-    if (currentEntry->tag->getTag() != calculateTag(pc)){
+    if (currentEntry->tag->getTag() != calculateTag(pc)){ // wrong tag
 
         delete currentEntry;
         currentEntry = new entry(pc, btb->tagSize, btb->historySize);
     }
-
+    /*decide which table and history to use*/
     if (isGlobalTable){
         currentFsm = btb ->globalFsmTable;
     }
@@ -336,7 +345,6 @@ void Btb::update(uint32_t pc, uint32_t target_pc, bool taken, uint32_t pred_dst)
     }
     if (taken == prediction){
         if (target_pc != pred_dst){
-//            simStats .flush_num++;
             currentEntry->predicted_pc = target_pc;
         }
     }
@@ -346,7 +354,7 @@ void Btb::update(uint32_t pc, uint32_t target_pc, bool taken, uint32_t pred_dst)
     }
     currentHistory->pushRight(taken);
     }
-
+//calculate btb size
 int calculateSize(){
     if (btb->isGlobalHist && btb->isGlobalTable){
         return btb->btbSize*(btb->tagSize + ADDRESS_SIZE + VALID_BIT_SIZE) + (btb->historySize + 2*pow(2,btb->historySize));
