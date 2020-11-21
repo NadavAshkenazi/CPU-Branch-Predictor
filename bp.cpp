@@ -16,6 +16,7 @@ enum STATE {SNT, WNT, WT, ST};
 #define USING_SHARE_LSB 1
 #define USING_SHARE_MID 2
 #define VALID_BIT_SIZE 1
+#define pass (void)0
 
 //**************************************
 // Global variables
@@ -143,7 +144,7 @@ string getCurrentFsmEntry(historyRegister* history, uint32_t pc){
 }
 
 int pc2key(uint32_t pc){
-    int keySize = btb->btbSize;
+    int keySize = log2(btb->btbSize);
     uint32_t key_mask = 0;
     for (int i = 0; i < keySize; i++){
         uint32_t mask = 1 << i;
@@ -332,9 +333,10 @@ void Btb::update(uint32_t pc, uint32_t target_pc, bool taken, uint32_t pred_dst)
     }
     if (taken == prediction){
         if (target_pc != pred_dst){
-            simStats .flush_num++;
+//            simStats .flush_num++;
             currentEntry->predicted_pc = target_pc;
         }
+        int debug = 0; //todo:debug
     }
     else {
         simStats .flush_num++;
