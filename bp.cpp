@@ -90,8 +90,8 @@ class Btb{
                                                                 tagSize(tagSize),initialFsmState(int2State(fsmState)),
                                                                 isGlobalHist(isGlobalHist),isGlobalTable(isGlobalTable),
                                                                 Shared(Shared), globalHistory(NULL), globalFsmTable(NULL){
-            this->branchTable = new  vector<entry*>(log2(btbSize));
-            for (int i =0; i < log2(btbSize); i++){
+            this->branchTable = new  vector<entry*>(btbSize);
+            for (int i =0; i < btbSize; i++){
                 (*(this->branchTable))[i] = NULL;
             }
             if (isGlobalHist){
@@ -144,13 +144,15 @@ string getCurrentFsmEntry(historyRegister* history, uint32_t pc){
 
 int pc2key(uint32_t pc){
     int keySize = btb->btbSize;
-    uint32_t key = 0;
+    uint32_t key_mask = 0;
     for (int i = 0; i < keySize; i++){
         uint32_t mask = 1 << i;
-        key = key | mask;
+        key_mask = key_mask | mask;
     }
-    key = key << 2;
-    return (key & pc);
+    key_mask = key_mask << 2;
+    int key = (key_mask & pc);
+    key = key >> 2;
+    return key;
 }
 
 string calculateTag(uint32_t pc){
