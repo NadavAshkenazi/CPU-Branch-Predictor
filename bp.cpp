@@ -15,7 +15,7 @@ enum STATE {SNT, WNT, WT, ST};
 #define NOT_USING_SHARE 0
 #define USING_SHARE_LSB 1
 #define USING_SHARE_MID 2
-#define VALID_BIT_SIZE 0 //debug
+#define VALID_BIT_SIZE 1 //debug
 #define pass (void)0
 
 //**************************************
@@ -228,26 +228,30 @@ bool Btb::predict(uint32_t pc, uint32_t* dst) {
     historyRegister* currentHistory;
     entry* currentEntry = (*(this->branchTable))[key];
 
-    if (currentEntry == NULL){ //todo: check if can be moved to update
-        btb->addNewBranch(pc);
-        currentEntry = (*(this->branchTable))[key];
-    }
+//    if (currentEntry == NULL){ //todo: check if can be moved to update
+//        btb->addNewBranch(pc);
+//        currentEntry = (*(this->branchTable))[key];
+//    }
 
     if (isGlobalTable){
         currentFsm = btb ->globalFsmTable;
     }
-    else {
+    else if (currentEntry != NULL) {
         currentFsm = (*(this->branchTable))[key]->fsmTable;
     }
     if (isGlobalHist){
         currentHistory = btb ->globalHistory;
     }
-    else {
+    else if (currentEntry != NULL) {
         currentHistory = (*(this->branchTable))[key]->history;
     }
 
     bool isTaken = false;
-    if (currentEntry->tag->getTag() != calculateTag(pc)) {
+    if(currentEntry == NULL){
+        isTaken = state2Bool(initialFsmState);
+        *dst = pc+4;
+    }
+    else if (currentEntry->tag->getTag() != calculateTag(pc)) {
          isTaken = state2Bool(initialFsmState);
          *dst = pc+4;
     }
@@ -298,6 +302,10 @@ void Btb::update(uint32_t pc, uint32_t target_pc, bool taken, uint32_t pred_dst)
     map<string, STATE>* currentFsm;
     historyRegister* currentHistory;
     entry* currentEntry = (*(this->branchTable))[key];
+    if (currentEntry == NULL){ //todo: check if works
+        btb->addNewBranch(pc);
+        currentEntry = (*(this->branchTable))[key];
+    }
     uint32_t tempdst = 0;
     bool prediction =btb->predict(pc, &tempdst);
     if (currentEntry->tag->getTag() != calculateTag(pc)){
@@ -324,7 +332,7 @@ void Btb::update(uint32_t pc, uint32_t target_pc, bool taken, uint32_t pred_dst)
     }
     else {
         (*currentFsm)[getCurrentFsmEntry(currentHistory, pc)] =
-                updateState((*currentFsm)[getCurrentFsmEntry(currentHistory, pc)], taken); 
+                updateState((*currentFsm)[getCurrentFsmEntry(currentHistory, pc)], taken);
     }
     if (taken == prediction){
         if (target_pc != pred_dst){
