@@ -88,7 +88,7 @@ class Btb{
         STATE initialFsmState;
         bool isGlobalHist;
         bool isGlobalTable;
-        bool Shared;
+        int Shared;
         historyRegister* globalHistory;
         map<string, STATE>* globalFsmTable;
         vector<entry*>* branchTable;
