@@ -123,6 +123,9 @@ int main(int argc, char **argv) {
 	}
 	int cnt = 1;
 	while ((fgets(line, 256, trace) != NULL)) {
+	    if (cnt == 14){
+	        int temp = 0;
+	    }
 		if (line[0] == '\n') {
 			break;
 		}
