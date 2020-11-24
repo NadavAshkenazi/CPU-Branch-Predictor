@@ -117,6 +117,7 @@ class Btb{
         bool predict(uint32_t pc, uint32_t* dst);
         void update(uint32_t pc, uint32_t target_pc, bool taken, uint32_t pred_dst);
 };
+
 // provides the the key to the fsm entry, allows lsb/mid share
 string getCurrentFsmEntry(historyRegister* history, uint32_t pc){
     if (!btb->isGlobalTable || btb->Shared == NOT_USING_SHARE){
@@ -165,9 +166,10 @@ int pc2key(uint32_t pc){
 
 // takes the relevant bit for tag in light of the tag size
 string calculateTag(uint32_t pc){
+    int keySize = log2(btb->btbSize);
     string res = "";
     for (int i = 0; i < btb->tagSize; i++){
-        int b = getBit(pc, i + btb->btbSize+2);
+        int b = getBit(pc, i + keySize+2);
         char bit = b==1?'1':'0';
         res = bit + res;
     }
@@ -180,9 +182,10 @@ private:
     vector<bool> tag;
 public:
     Tag(uint32_t pc,int tagSize){
+        int keySize = log2(btb->btbSize);
         this->tag = vector<bool>(tagSize);
         for (int i = 0; i < tagSize; i++){
-            tag[i] = getBit(pc, i+btb->btbSize+2);
+            tag[i] = getBit(pc, i+keySize+2);
         }
     }
     string getTag(){

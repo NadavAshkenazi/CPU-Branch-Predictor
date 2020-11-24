@@ -121,9 +121,9 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "Predictor init failed\n");
 		exit(8);
 	}
-	int cnt = 1;
+	int cntDebug = 1;
 	while ((fgets(line, 256, trace) != NULL)) {
-	    if (cnt == 14){
+	    if (cntDebug == 12){
 	        int temp = 0;
 	    }
 		if (line[0] == '\n') {
@@ -153,7 +153,7 @@ int main(int argc, char **argv) {
 
 
 		BP_update(pc, targetPc, taken, dst);
-        cnt++;
+        cntDebug++;
     }
 
 	SIM_stats stats;
