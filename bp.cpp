@@ -281,11 +281,11 @@ bool Btb::predict(uint32_t pc, uint32_t* dst) {
 
     bool isTaken = false;
     if(currentEntry == NULL){ // no entry found
-        isTaken = state2Bool(updateState(initialFsmState, false)); //todo: check
+        isTaken = false; //todo: check
         *dst = pc+4;
     }
     else if (currentEntry->tag->getTag() != calculateTag(pc)) { // right entry wrong tag
-        isTaken = state2Bool(updateState(initialFsmState, false)); //todo: check
+        isTaken = false; //todo: check
          *dst = pc+4;
     }
     else { //right entry right tag
