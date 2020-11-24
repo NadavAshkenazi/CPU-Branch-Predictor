@@ -290,8 +290,8 @@ bool Btb::predict(uint32_t pc, uint32_t* dst) {
     }
     else { //right entry right tag
         if ((*currentFsm).find(getCurrentFsmEntry(currentHistory, pc)) == (*currentFsm).end()) { //no history entry in fsm
-//            isTaken = state2Bool(initialFsmState);
-            isTaken = false; //todo:check
+            isTaken = state2Bool(initialFsmState);
+//            isTaken = false; //todo:check
         }
         else { // found history entry in fsm
             isTaken = state2Bool(
