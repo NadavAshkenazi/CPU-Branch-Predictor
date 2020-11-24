@@ -141,9 +141,10 @@ string getCurrentFsmEntry(historyRegister* history, uint32_t pc){
     }
     mask = mask << startBit;
     uint32_t pcWantedBits = mask & pc;
+    pcWantedBits = pcWantedBits >> startBit;
     string res = "";
     for (int i = 0; i< btb->historySize; i++){
-        if (history->history[i] xor getBit(pcWantedBits,startBit+i)){
+        if (history->history[(btb->historySize - 1) - i] xor getBit(pcWantedBits,i)){
             res = "1"+res;
         }
         else {
@@ -267,9 +268,6 @@ STATE updateState(STATE currentState, bool isTaken) {
 
 // predict taking/not taking the branch
 bool Btb::predict(uint32_t pc, uint32_t* dst) {
-    if (btb->Shared == 1){ // todo: debug
-        int debug =0;
-    }
     int key = pc2key(pc);
     map<string, STATE>* currentFsm;
     historyRegister* currentHistory;
@@ -365,9 +363,6 @@ void Btb::update(uint32_t pc, uint32_t target_pc, bool taken, uint32_t pred_dst)
 
 //    std::cout << getCurrentFsmEntry(currentHistory, pc) << endl;
     currentHistory->pushRight(taken);
-    if (btb->Shared == 1){ // todo: debug
-        int debug =0;
-    }
 }
 //calculate btb size
 int calculateSize(){
