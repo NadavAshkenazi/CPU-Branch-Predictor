@@ -6,6 +6,8 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <stdio.h>
+#include <iostream>
 
 using namespace std;
 
@@ -133,8 +135,8 @@ string getCurrentFsmEntry(historyRegister* history, uint32_t pc){
     }
 
     for (int i = 0; i < btb->historySize; i++){
-        mask = mask << 1;
         mask++;
+        mask = mask << 1;
     }
     mask = mask << startBit;
     uint32_t pcWantedBits = mask & pc;
@@ -359,6 +361,10 @@ void Btb::update(uint32_t pc, uint32_t target_pc, bool taken, uint32_t pred_dst)
         simStats .flush_num++;
         currentEntry->predicted_pc = target_pc;
     }
+    if (getCurrentFsmEntry(currentHistory, pc) == "10101"){
+        int debug = 0;
+    }
+//    std::cout << getCurrentFsmEntry(currentHistory, pc) << endl;
     currentHistory->pushRight(taken);
     }
 //calculate btb size
