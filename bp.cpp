@@ -314,12 +314,12 @@ void Btb::update(uint32_t pc, uint32_t target_pc, bool taken, uint32_t pred_dst)
     map<string, STATE>* currentFsm;
     historyRegister* currentHistory;
     entry* currentEntry = (*(this->branchTable))[key];
+    uint32_t tempdst = 0;
+    bool prediction =btb->predict(pc, &tempdst);
     if (currentEntry == NULL){ // no entry found, insert new entry
         btb->addNewBranch(pc);
         currentEntry = (*(this->branchTable))[key];
     }
-    uint32_t tempdst = 0;
-    bool prediction =btb->predict(pc, &tempdst);
     if (currentEntry->tag->getTag() != calculateTag(pc)){ // wrong tag
 
         delete currentEntry;
