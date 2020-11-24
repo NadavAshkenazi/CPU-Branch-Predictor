@@ -235,51 +235,6 @@ bool state2Bool(STATE state){
     }
 }
 
-// predict taking/not taking the branch
-bool Btb::predict(uint32_t pc, uint32_t* dst) {
-    int key = pc2key(pc);
-    map<string, STATE>* currentFsm;
-    historyRegister* currentHistory;
-    entry* currentEntry = (*(this->branchTable))[key];
-    /*decide which table and history to use*/
-    if (isGlobalTable){
-        currentFsm = btb ->globalFsmTable;
-    }
-    else if (currentEntry != NULL) {
-        currentFsm = (*(this->branchTable))[key]->fsmTable;
-    }
-    if (isGlobalHist){
-        currentHistory = btb ->globalHistory;
-    }
-    else if (currentEntry != NULL) {
-        currentHistory = (*(this->branchTable))[key]->history;
-    }
-
-    bool isTaken = false;
-    if(currentEntry == NULL){ // no entry found
-        isTaken = state2Bool(initialFsmState);
-        *dst = pc+4;
-    }
-    else if (currentEntry->tag->getTag() != calculateTag(pc)) { // right entry wrong tag
-         isTaken = state2Bool(initialFsmState);
-         *dst = pc+4;
-    }
-    else { //right entry right tag
-        if ((*currentFsm).find(getCurrentFsmEntry(currentHistory, pc)) == (*currentFsm).end()) { //no history entry in fsm
-            isTaken = state2Bool(initialFsmState);
-        }
-        else { // found history entry in fsm
-            isTaken = state2Bool(
-                    (*currentFsm)[getCurrentFsmEntry(currentHistory, pc)]);
-        }
-        if (!isTaken) // return default target (pc+4)
-            *dst = pc + 4;
-        else { // return predicted target
-            *dst = currentEntry->predicted_pc;
-        }
-    }
-    return isTaken;
-}
 // taken given state and outcome returns next state
 STATE updateState(STATE currentState, bool isTaken) {
     switch(currentState){
@@ -302,6 +257,54 @@ STATE updateState(STATE currentState, bool isTaken) {
         default: return WNT;
     }
 }
+
+
+// predict taking/not taking the branch
+bool Btb::predict(uint32_t pc, uint32_t* dst) {
+    int key = pc2key(pc);
+    map<string, STATE>* currentFsm;
+    historyRegister* currentHistory;
+    entry* currentEntry = (*(this->branchTable))[key];
+    /*decide which table and history to use*/
+    if (isGlobalTable){
+        currentFsm = btb ->globalFsmTable;
+    }
+    else if (currentEntry != NULL) {
+        currentFsm = (*(this->branchTable))[key]->fsmTable;
+    }
+    if (isGlobalHist){
+        currentHistory = btb ->globalHistory;
+    }
+    else if (currentEntry != NULL) {
+        currentHistory = (*(this->branchTable))[key]->history;
+    }
+
+    bool isTaken = false;
+    if(currentEntry == NULL){ // no entry found
+        isTaken = state2Bool(updateState(initialFsmState, false)); //todo: check
+        *dst = pc+4;
+    }
+    else if (currentEntry->tag->getTag() != calculateTag(pc)) { // right entry wrong tag
+        isTaken = state2Bool(updateState(initialFsmState, false)); //todo: check
+         *dst = pc+4;
+    }
+    else { //right entry right tag
+        if ((*currentFsm).find(getCurrentFsmEntry(currentHistory, pc)) == (*currentFsm).end()) { //no history entry in fsm
+            isTaken = state2Bool(initialFsmState);
+        }
+        else { // found history entry in fsm
+            isTaken = state2Bool(
+                    (*currentFsm)[getCurrentFsmEntry(currentHistory, pc)]);
+        }
+        if (!isTaken) // return default target (pc+4)
+            *dst = pc + 4;
+        else { // return predicted target
+            *dst = currentEntry->predicted_pc;
+        }
+    }
+    return isTaken;
+}
+
 
 // update btb data
 void Btb::update(uint32_t pc, uint32_t target_pc, bool taken, uint32_t pred_dst){
