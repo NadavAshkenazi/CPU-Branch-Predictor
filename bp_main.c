@@ -123,7 +123,7 @@ int main(int argc, char **argv) {
 	}
 	int cntDebug = 1;
 	while ((fgets(line, 256, trace) != NULL)) {
-	    if (cntDebug == 22){
+	    if (cntDebug == 4){
 	        int temp = 0;
 	    }
 		if (line[0] == '\n') {

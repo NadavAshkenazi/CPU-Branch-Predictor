@@ -127,16 +127,17 @@ string getCurrentFsmEntry(historyRegister* history, uint32_t pc){
     }
     uint32_t mask = 0;
     int startBit = 0;
-    if (btb->Shared= USING_SHARE_LSB){
+    if (btb->Shared == USING_SHARE_LSB){
         startBit = 2;
     }
-    else if (btb->Shared= USING_SHARE_MID){
+    else if (btb->Shared == USING_SHARE_MID){
         startBit = 16;
     }
 
     for (int i = 0; i < btb->historySize; i++){
         mask++;
-        mask = mask << 1;
+        if (i < btb->historySize - 1)
+            mask = mask << 1;
     }
     mask = mask << startBit;
     uint32_t pcWantedBits = mask & pc;
@@ -266,6 +267,9 @@ STATE updateState(STATE currentState, bool isTaken) {
 
 // predict taking/not taking the branch
 bool Btb::predict(uint32_t pc, uint32_t* dst) {
+    if (btb->Shared == 1){ // todo: debug
+        int debug =0;
+    }
     int key = pc2key(pc);
     map<string, STATE>* currentFsm;
     historyRegister* currentHistory;
@@ -314,6 +318,9 @@ bool Btb::predict(uint32_t pc, uint32_t* dst) {
 
 // update btb data
 void Btb::update(uint32_t pc, uint32_t target_pc, bool taken, uint32_t pred_dst){
+    if (btb->Shared == 1){ // todo: debug
+        int debug =0;
+    }
     simStats.br_num++;
 
     int key = pc2key(pc);
@@ -327,7 +334,6 @@ void Btb::update(uint32_t pc, uint32_t target_pc, bool taken, uint32_t pred_dst)
         currentEntry = (*(this->branchTable))[key];
     }
     if (currentEntry->tag->getTag() != calculateTag(pc)){ // wrong tag
-
         delete currentEntry;
         currentEntry = new entry(pc, btb->tagSize, btb->historySize);
     }
@@ -352,21 +358,17 @@ void Btb::update(uint32_t pc, uint32_t target_pc, bool taken, uint32_t pred_dst)
         (*currentFsm)[getCurrentFsmEntry(currentHistory, pc)] =
                 updateState((*currentFsm)[getCurrentFsmEntry(currentHistory, pc)], taken);
     }
-    if (taken == prediction){
-        if (target_pc != pred_dst){
-            currentEntry->predicted_pc = target_pc;
-        }
+    if ((!taken && pred_dst != pc+4) || (taken && pred_dst !=target_pc)){
+        simStats.flush_num++;
     }
-    else {
-        simStats .flush_num++;
-        currentEntry->predicted_pc = target_pc;
-    }
-    if (getCurrentFsmEntry(currentHistory, pc) == "10101"){
-        int debug = 0;
-    }
+    currentEntry->predicted_pc = target_pc;
+
 //    std::cout << getCurrentFsmEntry(currentHistory, pc) << endl;
     currentHistory->pushRight(taken);
+    if (btb->Shared == 1){ // todo: debug
+        int debug =0;
     }
+}
 //calculate btb size
 int calculateSize(){
     if (btb->isGlobalHist && btb->isGlobalTable){
