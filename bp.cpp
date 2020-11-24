@@ -288,17 +288,16 @@ bool Btb::predict(uint32_t pc, uint32_t* dst) {
 
     bool isTaken = false;
     if(currentEntry == NULL){ // no entry found
-        isTaken = false; //todo: check
+        isTaken = false;
         *dst = pc+4;
     }
     else if (currentEntry->tag->getTag() != calculateTag(pc)) { // right entry wrong tag
-        isTaken = false; //todo: check
+        isTaken = false;
          *dst = pc+4;
     }
     else { //right entry right tag
         if ((*currentFsm).find(getCurrentFsmEntry(currentHistory, pc)) == (*currentFsm).end()) { //no history entry in fsm
             isTaken = state2Bool(initialFsmState);
-//            isTaken = false; //todo:check
         }
         else { // found history entry in fsm
             isTaken = state2Bool(
@@ -316,17 +315,12 @@ bool Btb::predict(uint32_t pc, uint32_t* dst) {
 
 // update btb data
 void Btb::update(uint32_t pc, uint32_t target_pc, bool taken, uint32_t pred_dst){
-    if (btb->Shared == 1){ // todo: debug
-        int debug =0;
-    }
     simStats.br_num++;
-
     int key = pc2key(pc);
     map<string, STATE>* currentFsm;
     historyRegister* currentHistory;
     entry* currentEntry = (*(this->branchTable))[key];
     uint32_t tempdst = 0;
-    bool prediction =btb->predict(pc, &tempdst);
     if (currentEntry == NULL){ // no entry found, insert new entry
         btb->addNewBranch(pc);
         currentEntry = (*(this->branchTable))[key];
@@ -361,7 +355,6 @@ void Btb::update(uint32_t pc, uint32_t target_pc, bool taken, uint32_t pred_dst)
     }
     currentEntry->predicted_pc = target_pc;
 
-//    std::cout << getCurrentFsmEntry(currentHistory, pc) << endl;
     currentHistory->pushRight(taken);
 }
 //calculate btb size
