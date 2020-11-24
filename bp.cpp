@@ -371,7 +371,7 @@ int calculateSize(){
 }
 int BP_init(unsigned btbSize, unsigned historySize, unsigned tagSize, unsigned fsmState,
 			bool isGlobalHist, bool isGlobalTable, int Shared){
-    if (btbSize % 2 != 0 || btbSize < 1 || btbSize > 32)
+    if (btbSize != 1 && btbSize != 2 && btbSize != 4 && btbSize != 8 && btbSize != 16 && btbSize != 32)
         return -1;
     else if (historySize < 1 || historySize > 8)
         return -1;
